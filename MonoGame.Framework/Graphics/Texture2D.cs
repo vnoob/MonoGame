@@ -703,7 +703,8 @@ namespace Microsoft.Xna.Framework.Graphics
 		{
 			this.GetData(0, null, data, 0, data.Length);
 		}
-		
+
+        static ManualResetEventSlim waitEvent = new ManualResetEventSlim(false);
 		public static Texture2D FromStream(GraphicsDevice graphicsDevice, Stream stream)
 		{
             //todo: partial classes would be cleaner
@@ -792,7 +793,26 @@ namespace Microsoft.Xna.Framework.Graphics
                 return texture;
             }
 #elif WINDOWS_PHONE
-            throw new NotImplementedException();
+            WriteableBitmap writableBitmap = null;
+            
+            Deployment.Current.Dispatcher.BeginInvoke(() =>
+            {
+                // Note that contrary to the method name this works for both JPEG and PNGs.
+                writableBitmap = Microsoft.Phone.PictureDecoder.DecodeJpeg(stream);
+                waitEvent.Set();
+            });
+            waitEvent.Wait();
+            waitEvent.Reset();
+            // Convert from ARGB to ABGR
+            int[] pixels = writableBitmap.Pixels;
+            for (int i = 0; i < writableBitmap.PixelWidth * writableBitmap.PixelHeight; ++i)
+            {
+                uint pixel = (uint)pixels[i];
+                pixels[i] = (int)((pixel & 0xFF00FF00) | ((pixel & 0x00FF0000) >> 16) | ((pixel & 0x000000FF) << 16));
+            }
+            Texture2D texture = new Texture2D(graphicsDevice, writableBitmap.PixelWidth, writableBitmap.PixelHeight, false, SurfaceFormat.Color);
+            texture.SetData<int>(pixels);
+            return texture;
 
 #elif WINDOWS_STOREAPP || DIRECTX
 

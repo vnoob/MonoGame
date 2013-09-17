@@ -206,7 +206,7 @@ namespace Microsoft.Xna.Framework
                             disposable.Dispose();
                     }
                     _components = null;
-
+                    
                     if (Content != null)
                     {
                         Content.Dispose();
